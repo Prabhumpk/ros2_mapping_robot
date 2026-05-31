@@ -1,0 +1,14 @@
+# Ignore local compilation artifacts (if you run builds inside src)
+build/
+install/
+log/
+
+# Python compilation files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS generated files
+.DS_Store
+Thumbs.db
