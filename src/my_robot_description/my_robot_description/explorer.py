@@ -24,9 +24,9 @@ class Explorer(Node):
             self.scan_callback,
             10
         )
-        self.front_distance = 999.0
-        self.left_distancet = 999.0
-        self.right_distance = 999.0
+        self.front_distance = 10.0
+        self.left_distance = 10.0
+        self.right_distance = 10.0
         self.counter = 0
 
 
@@ -36,16 +36,16 @@ class Explorer(Node):
             msg.linear.x = 0.0
             if self.left_distance > self.right_distance + 0.3:
                 msg.angular.z = 1.0
-            elif self.left_distance > self.left_distance + 0.3:
+            elif self.right_distance > self.left_distance + 0.3:
                 msg.angular.z = -1.0
             else:
                 msg.angular.z = 1.0
         elif self.left_distance < 0.4:
             msg.linear.x = 0.1
-            msg.angular.z = -0.4
+            msg.angular.z = -1.0
         elif self.right_distance < 0.4:
             msg.linear.x = 0.1
-            msg.angular.z = 0.4
+            msg.angular.z = 1.0
         else:
             msg.linear.x = 0.2
             msg.angular.z = 0.0
@@ -54,8 +54,8 @@ class Explorer(Node):
     def scan_callback(self, msg):
         if len(msg.ranges) > 180:
             self.front_distance = msg.ranges[180]
-            self.left_distance = msg.ranges[90]
-            self.right_distance = msg.ranges[270]
+            self.left_distance = msg.ranges[270]
+            self.right_distance = msg.ranges[90]
             self.counter += 1
             if self.counter % 10 == 0:
                 self.get_logger().info(
@@ -63,6 +63,7 @@ class Explorer(Node):
                     f"Left={self.left_distance:.2f} "
                     f"Right={self.right_distance:.2f}"
                 )
+                self.get_logger().info(f"Length={len(msg.ranges)}")
 
 
     

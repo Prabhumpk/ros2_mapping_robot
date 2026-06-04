@@ -12,7 +12,7 @@ def generate_launch_description():
         raise RuntimeError("Package 'my_robot_description' could not be located in the workspace.")
 
     urdf_file = os.path.join(pkg_path, 'urdf', 'my_robot.urdf')
-    world_file = os.path.join(pkg_path, 'worlds', 'my_new_world.world')
+    world_file = os.path.join(pkg_path, 'worlds', 'custom_world_v1.world')
 
     # 2. Extract and parse URDF data safely
     if not os.path.exists(urdf_file):
