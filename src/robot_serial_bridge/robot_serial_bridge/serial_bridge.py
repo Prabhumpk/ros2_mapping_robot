@@ -13,20 +13,40 @@ from std_msgs.msg import Int32MultiArray
 class SerialBridge(Node):
 
     def __init__(self):
+
         super().__init__('serial_bridge')
 
         self.port = '/dev/ttyUSB0'
         self.baudrate = 115200
 
+        self.serial_connected = False
+
+        self.left_encoder = 0
+        self.right_encoder = 0
+
         self.get_logger().info(
-            f'Opening serial port {self.port}'
+            f'Trying to open {self.port}'
         )
 
-        self.ser = serial.Serial(
-            self.port,
-            self.baudrate,
-            timeout=0.1
-        )
+        try:
+
+            self.ser = serial.Serial(
+                self.port,
+                self.baudrate,
+                timeout=0.1
+            )
+
+            self.serial_connected = True
+
+            self.get_logger().info(
+                f'Connected to {self.port}'
+            )
+
+        except Exception as e:
+
+            self.get_logger().warn(
+                f'Serial not available. Running in TEST MODE. {e}'
+            )
 
         self.cmd_sub = self.create_subscription(
             Twist,
@@ -41,15 +61,22 @@ class SerialBridge(Node):
             10
         )
 
-        self.serial_thread = threading.Thread(
-            target=self.read_serial_loop,
-            daemon=True
+        self.encoder_timer = self.create_timer(
+            0.1,
+            self.publish_test_encoder
         )
 
-        self.serial_thread.start()
+        if self.serial_connected:
+
+            self.serial_thread = threading.Thread(
+                target=self.read_serial_loop,
+                daemon=True
+            )
+
+            self.serial_thread.start()
 
         self.get_logger().info(
-            'Serial bridge started'
+            'Serial Bridge Started'
         )
 
     def cmd_vel_callback(self, msg):
@@ -57,13 +84,43 @@ class SerialBridge(Node):
         linear = msg.linear.x
         angular = msg.angular.z
 
-        serial_msg = f"CMD,{linear:.3f},{angular:.3f}\n"
+        serial_msg = (
+            f"CMD,{linear:.3f},{angular:.3f}\n"
+        )
 
-        self.ser.write(serial_msg.encode())
+        if self.serial_connected:
+
+            try:
+
+                self.ser.write(
+                    serial_msg.encode()
+                )
+
+            except Exception as e:
+
+                self.get_logger().error(
+                    f"Serial Write Error: {e}"
+                )
 
         self.get_logger().info(
             f"TX -> {serial_msg.strip()}"
         )
+
+    def publish_test_encoder(self):
+
+        if self.serial_connected:
+            return
+
+        self.left_encoder += 5
+        self.right_encoder += 5
+
+        msg = Int32MultiArray()
+        msg.data = [
+            self.left_encoder,
+            self.right_encoder
+        ]
+
+        self.encoder_pub.publish(msg)
 
     def read_serial_loop(self):
 
@@ -73,7 +130,7 @@ class SerialBridge(Node):
 
                 line = (
                     self.ser.readline()
-                    .decode()
+                    .decode(errors='ignore')
                     .strip()
                 )
 
@@ -94,15 +151,33 @@ class SerialBridge(Node):
                         right = int(parts[2])
 
                         msg = Int32MultiArray()
-                        msg.data = [left, right]
 
-                        self.encoder_pub.publish(msg)
+                        msg.data = [
+                            left,
+                            right
+                        ]
+
+                        self.encoder_pub.publish(
+                            msg
+                        )
 
             except Exception as e:
 
                 self.get_logger().error(
-                    f"Serial error: {e}"
+                    f"Serial Read Error: {e}"
                 )
+
+    def destroy_node(self):
+
+        if self.serial_connected:
+
+            try:
+                self.ser.close()
+
+            except:
+                pass
+
+        super().destroy_node()
 
 
 def main(args=None):
@@ -111,7 +186,13 @@ def main(args=None):
 
     node = SerialBridge()
 
-    rclpy.spin(node)
+    try:
+
+        rclpy.spin(node)
+
+    except KeyboardInterrupt:
+
+        pass
 
     node.destroy_node()
 
